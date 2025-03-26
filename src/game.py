@@ -169,7 +169,7 @@ class Game:
             self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), flags)
         except pygame.error:
             self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # Fallback
-        pygame.display.set_caption("Neon Physics Simulation")
+        pygame.display.set_caption("Physics Simulation")
 
         self.renderer = GameRenderer(self.screen)
         audio_manager.initialize()
