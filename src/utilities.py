@@ -165,7 +165,7 @@ def spawn_particles(particles, pos, count, base_color, speed_min, speed_max, lif
             # Handle case where base_color might be invalid for HSVA
             continue
 
-def trigger_screen_shake(duration=SHAKE_DURATION, intensity=SHAKE_INTENSITY):
+def trigger_screen_shake(duration=SHAKE_DURATION, intensity=FINAL_SHAKE_INTENSITY):
     """
     Calculate a screen shake offset 
     

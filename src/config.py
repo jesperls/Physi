@@ -7,107 +7,93 @@ FPS = 144
 CENTER = pygame.Vector2(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
 CONTAINER_RADIUS = 400
 
-# --- Physics ---
-GRAVITY_STRENGTH = 100.0  # Reduced gravity for less center gathering
-MAX_VELOCITY = 1000      # Higher max velocity for more exciting motion
-GRAVITY_CENTER_DEADZONE = 0  # New: Radius around center with reduced gravity
+# --- Physics (Values represent the state at the START of the simulation) ---
+INITIAL_GRAVITY_STRENGTH = 300.0  # Starting gravity
+FINAL_GRAVITY_STRENGTH = 100.0    # Gravity at 60 seconds
+INITIAL_MAX_VELOCITY = 800        # Starting max velocity
+FINAL_MAX_VELOCITY = 1500         # Max velocity at 60 seconds
+GRAVITY_CENTER_DEADZONE = 0       # Radius around center with no gravity
 
-# --- Ball Properties ---
-INITIAL_BALLS = 3         # Reduced to 3 balls as requested
-MIN_RADIUS = 10
-MAX_RADIUS = 40           # Smaller max size for better visibility
+# --- Ball Properties (Values represent the state at the START of the simulation) ---
+INITIAL_BALLS = 3                 # Start with a few more balls
+MIN_RADIUS = 8                   # Smaller minimum size
+MAX_RADIUS = 35                  # Slightly smaller max size
 BASE_DENSITY = 0.1
-MIN_BALL_ELASTICITY = 1  # New: Minimum elasticity for more bounce
-MAX_BALL_ELASTICITY = 1.2   # New: Maximum elasticity when ramped up
-DRAG_COEFFICIENT = 0.999   # New: Reduced drag for more dynamic movement
+INITIAL_BALL_ELASTICITY = 1    # Start slightly bouncy
+FINAL_BALL_ELASTICITY = 1.05      # Max elasticity at 60 seconds (can exceed 1.0 for energy gain)
+INITIAL_DRAG_COEFFICIENT = 0.999  # Start with slight drag
+FINAL_DRAG_COEFFICIENT = 0.9998   # Almost no drag at 60 seconds (0.9998 is closer to 1.0 than 0.999)
 
 # --- Color and Visual Dynamics ---
-# Enhanced color control for more varied and harmonious colors
-COLOR_SPECTRUM_RANGE = 360  # Full color spectrum
+COLOR_SPECTRUM_RANGE = 360
 COLOR_HARMONY_GROUPS = [
-    (0, 40),        # Red group
-    (30, 70),       # Orange/Yellow group
-    (60, 100),      # Yellow/Chartreuse
-    (90, 150),      # Green group
-    (150, 210),     # Cyan/Blue group
-    (210, 270),     # Blue/Purple group
-    (270, 330),     # Purple/Magenta
-    (330, 360)      # Magenta/Red
+    (0, 40), (30, 70), (60, 100), (90, 150),
+    (150, 210), (210, 270), (270, 330), (330, 360)
 ]
-COLOR_HARMONY_CHANCE = 0  # Reduced chance to allow more random vibrant colors
-COLOR_SATURATION_RANGE = (80, 100)  # Allow for more saturation variety
-COLOR_VALUE_RANGE = (85, 100)       # Allow for more brightness variety
+COLOR_HARMONY_CHANCE = 0.1
+COLOR_SATURATION_RANGE = (80, 100)
+COLOR_VALUE_RANGE = (85, 100)
+COLOR_SHIFT_BASE_RATE = 5.0
+COLOR_SHIFT_VARIANCE = 1.5
+COLOR_SHIFT_OSCILLATION = 0.6
+INITIAL_GROWTH_RATE = 0.3         # Slower initial growth
+FINAL_GROWTH_RATE = 0.5           # Faster growth towards the end
 
-# Dynamic behavior 
-COLOR_SHIFT_BASE_RATE = 5.0        # Reduced color shift rate for less chaotic appearance
-COLOR_SHIFT_VARIANCE = 1.5         # Reduced random variance in shift rate per ball
-COLOR_SHIFT_OSCILLATION = 0.6      # Oscillation factor (0 = constant, 1 = fully varying)
-GROWTH_RATE = 0.3                  # Ball growth rate (reduced from 1.2 for more stability)
-
-# --- Splitting and Merging ---
-COLOR_DISTANCE_THRESHOLD = 70     # Higher threshold - easier to merge
-SPLIT_TINT_FACTOR = 0
+# --- Splitting and Merging (Values represent the state at the START of the simulation) ---
+INITIAL_COLOR_DISTANCE_THRESHOLD = 20 # Harder to merge initially
+FINAL_COLOR_DISTANCE_THRESHOLD = 60   # Easier to merge at 60 seconds
+INITIAL_SPLIT_CHANCE = 0.02       # Low initial split chance
+FINAL_SPLIT_CHANCE = 0.20         # High split chance at 60 seconds
+INITIAL_COLLISION_SHRINK_FACTOR = 0.001 # Minimal shrink initially
+FINAL_COLLISION_SHRINK_FACTOR = 0.03  # Significant shrink at 60 seconds
+SPLIT_TINT_FACTOR = 0.1
 MERGE_AREA_FACTOR = 1.0
-SPLIT_MASS_LOSS_FACTOR = 1.2     # Reduced mass loss during splitting for more stability
-MIN_SPLIT_RADIUS = 12            # Increased min split radius to prevent excessive splitting
+INITIAL_SPLIT_MASS_LOSS_FACTOR = 1.05 # Less mass loss initially
+FINAL_SPLIT_MASS_LOSS_FACTOR = 1.30 # More mass loss at 60 seconds
+MIN_SPLIT_RADIUS = 10             # Min radius required to split
 
 # --- Visual Effects ---
-BACKGROUND_COLOR = pygame.Color(5, 0, 10)  # Very dark purple/blue
-
-# Glow Layers: Core -> Bright Bloom (Add) -> Soft Haze (Alpha)
-GLOW_BLOOM_SIZE_FACTOR = 1.2      # Size factor for bloom effect
-GLOW_BLOOM_INTENSITY = 80         # Bloom intensity
-GLOW_HAZE_SIZE_FACTOR = 2.2       # Size factor for haze effect
-GLOW_HAZE_ALPHA = 35              # Base alpha for haze effect
-
-# Pulse Effect
+BACKGROUND_COLOR = pygame.Color(5, 0, 10)
+GLOW_BLOOM_SIZE_FACTOR = 1.2
+GLOW_BLOOM_INTENSITY = 80
+GLOW_HAZE_SIZE_FACTOR = 2.2
+GLOW_HAZE_ALPHA = 35
 PULSE_FREQUENCY = 1.5
-PULSE_FREQUENCY_VARIANCE = 0.5    # Added variance in pulse frequency
-PULSE_AMPLITUDE_BLOOM = 0.4       # Bloom pulse effect
-PULSE_AMPLITUDE_HAZE = 0.3        # Haze pulse effect
-
-# Trails
+PULSE_FREQUENCY_VARIANCE = 0.5
+PULSE_AMPLITUDE_BLOOM = 0.4
+PULSE_AMPLITUDE_HAZE = 0.3
 TRAIL_LENGTH = 8
 TRAIL_ALPHA_START = 60
-
-# Flash Effects
 FLASH_DURATION = 0.2
 FLASH_RADIUS_FACTOR = 2.0
-
-# Particles
 PARTICLE_COUNT_COLLISION = 15
 PARTICLE_COUNT_SPLIT_MERGE = 30
-PARTICLE_COUNT_POP = 20       # New: Particle count for pop animation
-PARTICLE_LIFESPAN = 0.6       # Seconds
+PARTICLE_COUNT_POP = 20
+PARTICLE_LIFESPAN = 0.6
 PARTICLE_SPEED_MIN = 50
 PARTICLE_SPEED_MAX = 200
 PARTICLE_RADIUS = 2.5
-POP_FLASH_DURATION = 0.3      # New: Duration for pop flash effect
-POP_SOUND_VOLUME = 0.8        # New: Volume for pop sound
-
-# Screen Shake
+POP_FLASH_DURATION = 0.3
+POP_SOUND_VOLUME = 0.8
 SHAKE_DURATION = 0.15
-SHAKE_INTENSITY = 5               # Pixels
+INITIAL_SHAKE_INTENSITY = 3       # Lower initial shake
+FINAL_SHAKE_INTENSITY = 10        # Higher shake intensity at 60 seconds
 
 # --- Game Flow ---
-INTRO_DURATION = 3.0              # Intro animation duration (seconds)
-INTRO_FADE_OVERLAP = 0.5          # Overlap for smoother transition from intro to game
-MAX_GAME_DURATION = 60.0          # 60 seconds for YouTube shorts
-FINALE_START_TIME = 55.0          # Start finale at 55 seconds
-FINALE_BALLS_COUNT = 0           # Number of balls to spawn during finale
-FINALE_MIN_RADIUS = 5
-FINALE_MAX_RADIUS = 20
-MAX_BALL_COUNT = 15               # Maximum number of balls for performance
+INTRO_DURATION = 3.0
+INTRO_FADE_OVERLAP = 0.5
+MAX_GAME_DURATION = 60.0          # Target duration for chaos ramp-up
+MAX_BALL_COUNT = 25               # Allow slightly more balls for chaos
+INITIAL_SPAWN_RATE = 0.001        # Chance per frame to spawn a ball at start
+FINAL_SPAWN_RATE = 0.005          # Chance per frame to spawn a ball at 60 seconds
 
 # --- Sound ---
-SOUND_ENABLED = True              # Master switch
+SOUND_ENABLED = True
 SOUND_VOLUME_MASTER = 0.6
 SOUND_VOLUME_AMBIENT = 0.2
-
-# Sound files - Simplified to just 4 essential sounds
 SOUND_FILES = {
-    'collision': 'collision.ogg',  # Single sound for all collisions and bounces
-    'ambient': 'ambient.ogg',      # Background ambient sound
-    'start': 'start.ogg',          # Sound played at the start
-    'end': 'end.ogg'               # Sound played at the end
+    'collision': 'collision.ogg',
+    'ambient': 'ambient.ogg',
+    'start': 'start.ogg',
+    'end': 'end.ogg'
 }
