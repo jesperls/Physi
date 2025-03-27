@@ -3,9 +3,6 @@ import cv2
 import time
 import numpy as np
 import random
-import os
-import moviepy.editor
-from moviepy.editor import *
 from datetime import datetime
 from src.config import *
 from src.audio import audio_manager
@@ -29,29 +26,12 @@ class GameRenderer:
     def setup_video_recording(self):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         game_state.video_filename = f"physics_simulation_{timestamp}.mp4"
-        
-        # Create a directory for temporary frames
-        game_state.frames_dir = f"temp_frames_{timestamp}"
-        if not os.path.exists(game_state.frames_dir):
-            os.makedirs(game_state.frames_dir)
-            
-        # Setup audio recording
-        game_state.temp_audio_file = f"temp_audio_{timestamp}.wav"
-        
-        # Set recording flag
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        video_fps = 60
+        game_state.video_writer = cv2.VideoWriter(
+            game_state.video_filename, fourcc, video_fps, (SCREEN_WIDTH, SCREEN_HEIGHT))
         game_state.recording = True
-        game_state.recording_fps = 60
-        
-        print(f"Recording setup complete. Final video will be: {game_state.video_filename}")
-        
-        # Start recording pygame audio
-        try:
-            pygame.mixer.set_reserved(0)  # Reserve channel 0 for recording
-            pygame.mixer.Channel(0).set_endevent(pygame.USEREVENT)
-        except Exception as e:
-            print(f"Error setting up audio channel: {e}")
-            
-        # We'll save frames individually instead of using cv2.VideoWriter
+        print(f"Recording video to: {game_state.video_filename} at {video_fps} FPS")
 
     def render_frame(self, current_time):
         self.screen.fill(BACKGROUND_COLOR)
@@ -160,68 +140,22 @@ class GameRenderer:
                 self.screen.blit(text_surf, (SCREEN_WIDTH//2 - text_surf.get_width()//2, SCREEN_HEIGHT//2 - 40))
 
     def capture_frame(self):
-        if not game_state.recording:
+        if not game_state.recording or game_state.video_writer is None:
             return
         try:
-            # Save the current frame to the temp directory
-            frame_number = len(game_state.frames)
-            frame_filename = os.path.join(game_state.frames_dir, f"frame_{frame_number:06d}.png")
-            pygame.image.save(self.screen, frame_filename)
-            game_state.frames.append(frame_filename)
+            pygame_surface_data = pygame.surfarray.array3d(self.screen)
+            cv2_frame = cv2.cvtColor(pygame_surface_data.swapaxes(0, 1), cv2.COLOR_RGB2BGR)
+            game_state.video_writer.write(cv2_frame)
         except Exception as e:
             print(f"Error capturing video frame: {e}")
 
     def cleanup_recording(self):
-        if game_state.recording:
+        if game_state.recording and game_state.video_writer is not None:
             try:
-                print("Finalizing video with audio...")
-                
-                # Create a video from the frames
-                if game_state.frames:
-                    # Create a clip from the images
-                    frame_duration = 1.0 / game_state.recording_fps
-                    
-                    # Use moviepy to create video from frames
-                    clip = mpe.ImageSequenceClip(game_state.frames, fps=game_state.recording_fps)
-                    
-                    # Save video with audio if available
-                    try:
-                        # Check if collision sound file exists
-                        if os.path.exists('collision.ogg'):
-                            # Create audio clip from the game sounds
-                            audio_clip = mpe.AudioFileClip('collision.ogg')
-                            # Set the audio for the video clip
-                            clip = clip.set_audio(audio_clip)
-                    except Exception as audio_err:
-                        print(f"Warning: Could not add audio to video: {audio_err}")
-                    
-                    # Write the final video file
-                    clip.write_videofile(game_state.video_filename, 
-                                        codec='libx264', 
-                                        audio_codec='aac',
-                                        fps=game_state.recording_fps)
-                    
-                    print(f"Video recording completed: {game_state.video_filename}")
-                    
-                    # Clean up temporary files
-                    for frame in game_state.frames:
-                        if os.path.exists(frame):
-                            os.remove(frame)
-                    
-                    if os.path.exists(game_state.frames_dir):
-                        os.rmdir(game_state.frames_dir)
-                    
-                    if os.path.exists(game_state.temp_audio_file):
-                        os.remove(game_state.temp_audio_file)
-                else:
-                    print("No frames were captured for the video.")
-                
-                game_state.recording = False
-                
+                game_state.video_writer.release()
+                print(f"Video recording completed: {game_state.video_filename}")
             except Exception as e:
                 print(f"Error finalizing video: {e}")
-                import traceback
-                traceback.print_exc()
 
 
 class Game:

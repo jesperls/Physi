@@ -1,6 +1,7 @@
 import pygame
 import math
 import random
+import time
 from src.config import *
 from src.entities import Ball, Effect
 from src.utilities import color_distance, lerp_color, spawn_particles, trigger_screen_shake
@@ -129,7 +130,7 @@ def handle_ball_collisions(balls, dt):
 
                     # Screen shake based on impact and chaos factor
                     shake_intensity = current_shake_intensity * (0.3 + (0.7 * impact_force))
-                    trigger_screen_shake(SHAKE_DURATION * (0.5 + 0.5 * impact_force))
+                    trigger_screen_shake(SHAKE_DURATION * (0.5 + 0.5 * impact_force), shake_intensity)
 
 
                     # 3. Splitting or Merging Logic
@@ -163,7 +164,7 @@ def handle_ball_collisions(balls, dt):
                                                        new_radius, new_radius * (2.0 + chaos * 0.5), FLASH_DURATION * 1.5)) # Bigger flash later
                         spawn_particles(game_state.particles, new_pos, int(PARTICLE_COUNT_SPLIT_MERGE * (1 + chaos)), # More particles later
                                        avg_color, PARTICLE_SPEED_MIN, PARTICLE_SPEED_MAX * (1 + chaos*0.8), 1.5)
-                        trigger_screen_shake(SHAKE_DURATION * 1.2)
+                        trigger_screen_shake(SHAKE_DURATION * 1.2, current_shake_intensity * 1.5)
 
                     # --- SPLIT Condition (Easier over time) ---
                     else:
@@ -204,7 +205,7 @@ def handle_ball_collisions(balls, dt):
                                     spawn_particles(game_state.particles, victim.position,
                                                    int(PARTICLE_COUNT_SPLIT_MERGE * (1 + chaos)), victim.current_color, # More particles later
                                                    PARTICLE_SPEED_MIN, PARTICLE_SPEED_MAX * (1 + chaos*0.8))
-                                    trigger_screen_shake(SHAKE_DURATION * (1 + chaos * 0.3)) # Stronger shake later
+                                    trigger_screen_shake(SHAKE_DURATION * (1 + chaos * 0.3), current_shake_intensity) # Stronger shake later
 
                                     for k in range(2):
                                         offset_dir = perp_normal if k == 0 else -perp_normal
@@ -267,7 +268,7 @@ def update_game_objects(dt):
                            pop_particle_count, ball.current_color,
                            PARTICLE_SPEED_MIN * 1.2, pop_particle_speed, 1.2)
             audio_manager.play('collision', POP_SOUND_VOLUME * (1 + game_state.chaos_factor*0.5), ball.position) # Louder pop later
-            trigger_screen_shake(SHAKE_DURATION * 0.4)
+            trigger_screen_shake(SHAKE_DURATION * 0.4, pop_shake_intensity)
 
         if ball.hit_wall_effect_info:
             info = ball.hit_wall_effect_info
@@ -300,7 +301,13 @@ def update_game_objects(dt):
         # Remove smallest balls first
         game_state.balls.sort(key=lambda b: b.radius)
         num_to_remove = len(game_state.balls) - MAX_BALL_COUNT
+        removed_ids = {ball.id for ball in game_state.balls[:num_to_remove]}
         game_state.balls = game_state.balls[num_to_remove:]
+        # Trigger pop effects for removed balls (optional, can be noisy)
+        # for ball_id in removed_ids:
+            # Find ball instance (might be inefficient)
+            # Find the ball instance to get position/color - this part needs optimization if used
+            # ... trigger pop effect ...
 
     # Add new balls periodically based on chaos factor
     current_spawn_rate = game_state.get_current_value(INITIAL_SPAWN_RATE, FINAL_SPAWN_RATE)
@@ -358,6 +365,9 @@ def create_initial_balls():
                         game_state.balls[j].hue = random.uniform(0, 360)
                         game_state.balls[j].current_color.hsva = (game_state.balls[j].hue, 100, 100, 100)
                     retries += 1
+
+
+# Removed trigger_finale as it's not needed with natural progression
 
 
 def spawn_fresh_ball():
