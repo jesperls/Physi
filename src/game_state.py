@@ -27,8 +27,12 @@ class GameState:
 
         # Recording state
         self.recording = False
-        self.video_writer = None
+        self.video_writer = None  # OpenCV video writer (no audio)
         self.video_filename = ""
+        self.frames_dir = ""      # Directory to store temp frames
+        self.frames = []          # List to store frame filenames for moviepy
+        self.recording_fps = 60   # Recording frame rate
+        self.temp_audio_file = "" # Temporary audio file path
 
         # Time-based chaos factor (0.0 at start, 1.0 at MAX_GAME_DURATION)
         self.chaos_factor = 0.0

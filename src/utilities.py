@@ -17,14 +17,11 @@ def random_bright_color(use_harmony=True):
         A pygame Color object
     """
     if use_harmony and random.random() < COLOR_HARMONY_CHANCE:
-        # Select from one of the harmony groups for more pleasing combinations
         group = random.choice(COLOR_HARMONY_GROUPS)
         h = random.uniform(group[0], group[1])
     else:
-        # Completely random hue across the full spectrum
         h = random.uniform(0, COLOR_SPECTRUM_RANGE)
     
-    # More variance in saturation and value while keeping colors vibrant
     s = random.uniform(COLOR_SATURATION_RANGE[0], COLOR_SATURATION_RANGE[1])
     v = random.uniform(COLOR_VALUE_RANGE[0], COLOR_VALUE_RANGE[1])
     
@@ -44,15 +41,12 @@ def generate_complementary_color(base_color):
     """
     try:
         h, s, v, a = base_color.hsva
-        # Complementary color is 180 degrees away on the color wheel
         new_h = (h + 180) % 360
         
-        # Keep the same saturation and value
         comp_color = pygame.Color(0)
         comp_color.hsva = (new_h, s, v, a)
         return comp_color
     except ValueError:
-        # Fallback if HSVA conversion fails
         return random_bright_color(False)
 
 def generate_analogous_color(base_color, angle_offset=30):
@@ -68,16 +62,13 @@ def generate_analogous_color(base_color, angle_offset=30):
     """
     try:
         h, s, v, a = base_color.hsva
-        # Randomly shift in positive or negative direction
         direction = random.choice([-1, 1])
         new_h = (h + direction * angle_offset) % 360
         
-        # Keep similar saturation and value
         analog_color = pygame.Color(0)
         analog_color.hsva = (new_h, s, v, a)
         return analog_color
     except ValueError:
-        # Fallback if HSVA conversion fails
         return random_bright_color(False)
 
 def generate_color_palette(base_color, num_colors=3):
@@ -93,10 +84,8 @@ def generate_color_palette(base_color, num_colors=3):
     """
     palette = [base_color]
     
-    # Mix of complementary and analogous colors for a balanced palette
     palette.append(generate_complementary_color(base_color))
-    
-    # Add analogous colors with varying angles
+
     for i in range(num_colors - 2):
         offset = random.randint(20, 40)
         palette.append(generate_analogous_color(base_color, offset))
@@ -150,22 +139,20 @@ def spawn_particles(particles, pos, count, base_color, speed_min, speed_max, lif
         speed = random.uniform(speed_min, speed_max)
         velocity = pygame.Vector2(math.cos(angle), math.sin(angle)) * speed
         try:
-            # Particle color variation
-            h, s, v, a = base_color.hsva # Assuming base_color is valid
+            h, s, v, a = base_color.hsva
             part_h = (h + random.uniform(-20, 20)) % 360
             part_s = max(0, min(100, s * random.uniform(0.8, 1.2)))
             part_v = max(0, min(100, v * random.uniform(0.8, 1.2)))
             part_color = pygame.Color(0)
-            part_color.hsva = (part_h, part_s, part_v, 100) # Alpha 100
+            part_color.hsva = (part_h, part_s, part_v, 100)
             lifespan = PARTICLE_LIFESPAN * random.uniform(0.7, 1.3) * lifespan_mod
-            part_radius = max(1, PARTICLE_RADIUS * random.uniform(0.8, 1.2)) # Ensure valid radius
-            from src.entities import Particle  # Import here to avoid circular imports
+            part_radius = max(1, PARTICLE_RADIUS * random.uniform(0.8, 1.2))
+            from src.entities import Particle
             particles.append(Particle(pos, velocity, part_color, lifespan, part_radius))
         except ValueError:
-            # Handle case where base_color might be invalid for HSVA
             continue
 
-def trigger_screen_shake(duration=SHAKE_DURATION, intensity=FINAL_SHAKE_INTENSITY):
+def trigger_screen_shake(duration=SHAKE_DURATION):
     """
     Calculate a screen shake offset 
     
@@ -178,9 +165,6 @@ def trigger_screen_shake(duration=SHAKE_DURATION, intensity=FINAL_SHAKE_INTENSIT
         Updated screen_shake_timer value
     """
     from src.game_state import game_state
-    # Add to existing shake timer rather than replacing
-    # Makes concurrent shakes stronger/longer
-    # Prevent timer from getting excessively long
     game_state.screen_shake_timer = min(SHAKE_DURATION * 3, 
                                        game_state.screen_shake_timer + duration)
     return game_state.screen_shake_timer
