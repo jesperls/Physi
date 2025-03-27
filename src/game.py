@@ -1,39 +1,163 @@
 import pygame
-import cv2
 import time
 import random
 import os
 import subprocess
-import threading
 from datetime import datetime
 from src.config import *
 from src.audio import audio_manager
-from src.entities import Ball, Particle, Effect
-from src.utilities import random_bright_color, spawn_particles, trigger_screen_shake
-# Removed trigger_finale import, added spawn_fresh_ball
+from src.entities import Particle
+from src.utilities import random_bright_color
 from src.physics import update_game_objects, create_initial_balls, spawn_fresh_ball
 from src.game_state import game_state
 import math
+import threading
+import numpy as np
+import sys
 
-class AudioRecorder:
-    """Handles recording of game audio - REPLACED with unified FFmpeg recorder approach"""
+class SimpleRecorder:
+    """Extremely simplified FFmpeg-based recorder"""
     
     def __init__(self):
         self.is_recording = False
         self.ffmpeg_process = None
         self.start_time = 0
+        self.output_filename = ""
+        self.video_only = False
     
-    def setup_audio_recording(self, filename):
-        """No longer used - audio is recorded with video by FFmpeg"""
-        # This method is kept for compatibility but no longer does separate audio recording
-        self.is_recording = True
-        self.start_time = time.time()
-        print("Audio will be recorded with video using FFmpeg")
+    def setup_recording(self, width, height, fps=60):
+        """Set up FFmpeg recording with minimal configuration"""
+        if self.is_recording:
+            return False
+            
+        # Create timestamped filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.output_filename = f"physics_simulation_{timestamp}.mp4"
+        
+        # First, try video-only recording as a fallback test
+        if self._try_video_only_recording(width, height, fps):
+            print("Video-only recording started successfully")
+            self.video_only = True
+            self.is_recording = True
+            self.start_time = time.time()
+            return True
+        else:
+            print("ERROR: Even basic video recording failed. Cannot record.")
+            return False
+    
+    def _try_video_only_recording(self, width, height, fps):
+        """Try a minimal video-only recording setup to test FFmpeg"""
+        try:
+            cmd = [
+                "ffmpeg", "-y",
+                "-f", "rawvideo",
+                "-vcodec", "rawvideo",
+                "-s", f"{width}x{height}",
+                "-pix_fmt", "rgb24",  # Use rgb24 instead of bgr24
+                "-r", f"{fps}",
+                "-i", "pipe:0",  # Use pipe:0 for standard input
+                "-c:v", "libx264",
+                "-preset", "ultrafast",
+                "-crf", "23",
+                "-pix_fmt", "yuv420p",
+                self.output_filename
+            ]
+            
+            print(f"Starting basic FFmpeg with command: {' '.join(cmd)}")
+            
+            # Start the process with low buffer size to detect issues quickly
+            self.ffmpeg_process = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                bufsize=1024*1024  # 1MB buffer
+            )
+            
+            # Check if process is still running after a short delay
+            time.sleep(0.5)
+            if self.ffmpeg_process.poll() is None:
+                return True
+            else:
+                print("FFmpeg process failed to start")
+                return False
+                
+        except Exception as e:
+            print(f"Error starting video-only recording: {e}")
+            if self.ffmpeg_process and self.ffmpeg_process.poll() is None:
+                try:
+                    self.ffmpeg_process.terminate()
+                except:
+                    pass
+            return False
+    
+    def add_frame(self, frame_data):
+        """Add a frame to the recording"""
+        if not self.is_recording or self.ffmpeg_process is None:
+            return
+            
+        if self.ffmpeg_process.poll() is not None:
+            print(f"FFmpeg process has terminated unexpectedly with code {self.ffmpeg_process.returncode}")
+            self.is_recording = False
+            return
+            
+        try:
+            # Write the frame data directly to FFmpeg's stdin
+            self.ffmpeg_process.stdin.write(frame_data)
+            self.ffmpeg_process.stdin.flush()  # Important: ensure data is sent
+        except BrokenPipeError:
+            print("Broken pipe error - FFmpeg process has closed the pipe")
+            self.is_recording = False
+        except Exception as e:
+            print(f"Error writing frame to FFmpeg: {e}")
+            self.is_recording = False
     
     def stop_recording(self):
-        """Stop the audio recording"""
+        """Stop recording and finalize the video file"""
+        if not self.is_recording:
+            return
+            
+        print("Stopping recording...")
         self.is_recording = False
-        print("Audio recording will stop with video recording")
+        
+        # Close the FFmpeg process
+        if self.ffmpeg_process:
+            try:
+                # Try to close stdin gently
+                if hasattr(self.ffmpeg_process, 'stdin') and self.ffmpeg_process.stdin:
+                    try:
+                        self.ffmpeg_process.stdin.close()
+                    except:
+                        pass
+                
+                # Wait briefly for FFmpeg to finish
+                try:
+                    exit_code = self.ffmpeg_process.wait(timeout=3.0)
+                    print(f"FFmpeg process exited with code {exit_code}")
+                except subprocess.TimeoutExpired:
+                    print("FFmpeg process did not exit in time, terminating...")
+                    self.ffmpeg_process.terminate()
+                    try:
+                        self.ffmpeg_process.wait(timeout=2.0)
+                    except:
+                        self.ffmpeg_process.kill()
+                
+                # Print recording stats
+                duration = time.time() - self.start_time
+                print(f"Recording completed: {self.output_filename}")
+                print(f"Recording duration: {duration:.2f} seconds")
+                
+            except Exception as e:
+                print(f"Error finalizing recording: {e}")
+                # Force kill if there's still an issue
+                try:
+                    if self.ffmpeg_process and self.ffmpeg_process.poll() is None:
+                        self.ffmpeg_process.kill()
+                except:
+                    pass
+        
+        self.ffmpeg_process = None
+
 
 class GameRenderer:
     """Handles rendering for the game"""
@@ -44,37 +168,22 @@ class GameRenderer:
         self.font = pygame.font.Font(None, 24)
         if self.font is None:
             self.font = pygame.font.SysFont("sans-serif", 24)
-        self.audio_recorder = AudioRecorder()
+        self.recorder = SimpleRecorder()
 
     def setup_video_recording(self):
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        base_filename = f"physics_simulation_{timestamp}"
+        # Get screen dimensions
+        screen_width, screen_height = self.screen.get_size()
         
-        # Setup video recording
-        game_state.video_filename = f"{base_filename}.mp4"
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        video_fps = 60  # Make sure video FPS is consistent
-        game_state.video_writer = cv2.VideoWriter(
-            game_state.video_filename, fourcc, video_fps, (SCREEN_WIDTH, SCREEN_HEIGHT))
-        game_state.recording = True
-        print(f"Recording video to: {game_state.video_filename} at {video_fps} FPS")
-        
-        # Setup audio recording - start audio first to ensure it's ready when video starts
-        game_state.audio_filename = f"{base_filename}.wav"
-        self.audio_recorder.setup_audio_recording(game_state.audio_filename)
-        
-        # Store base filename for later use
-        self.base_filename = base_filename
-        
-        # Add a short delay to ensure audio recording is properly initialized
-        time.sleep(0.1)
+        # Start the recorder
+        success = self.recorder.setup_recording(screen_width, screen_height, fps=60)
+        game_state.recording = success
+        return success
 
     def render_frame(self, current_time):
         self.screen.fill(BACKGROUND_COLOR)
         draw_offset = game_state.current_screen_offset
 
         # Draw container circle (less prominent over time)
-        # elapsed_time = game_state.get_elapsed_time()
         container_alpha = 1
         if container_alpha > 0.01:
             container_color_val = int(15 + 30 * container_alpha)
@@ -176,66 +285,22 @@ class GameRenderer:
                 self.screen.blit(text_surf, (SCREEN_WIDTH//2 - text_surf.get_width()//2, SCREEN_HEIGHT//2 - 40))
 
     def capture_frame(self):
-        if not game_state.recording or game_state.video_writer is None:
+        if not game_state.recording or not self.recorder.is_recording:
             return
         try:
-            # Capture and write the video frame
-            pygame_surface_data = pygame.surfarray.array3d(self.screen)
-            cv2_frame = cv2.cvtColor(pygame_surface_data.swapaxes(0, 1), cv2.COLOR_RGB2BGR)
-            game_state.video_writer.write(cv2_frame)
+            # Get raw pixel data from the pygame surface and convert directly
+            # Note: We use raw pygame methods to avoid numpy which can be slower
+            frame_data = pygame.image.tostring(self.screen, 'RGB')
+            
+            # Send frame to recorder
+            self.recorder.add_frame(frame_data)
         except Exception as e:
-            print(f"Error capturing video frame: {e}")
+            print(f"Error capturing frame: {e}")
 
     def cleanup_recording(self):
-        if game_state.recording and game_state.video_writer is not None:
-            try:
-                game_state.video_writer.release()
-                print(f"Video recording completed: {game_state.video_filename}")
-            except Exception as e:
-                print(f"Error finalizing video: {e}")
-        
-        # Stop the audio recording
-        self.audio_recorder.stop_recording()
-        
-        # Try to merge audio and video if both exist
-        if os.path.exists(game_state.video_filename) and os.path.exists(game_state.audio_filename):
-            self._merge_audio_video()
-    
-    def _merge_audio_video(self):
-        """Attempt to merge audio and video files using FFmpeg if available"""
-        try:
-            # Check if ffmpeg is available
-            try:
-                subprocess.run(["ffmpeg", "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-                ffmpeg_available = True
-            except (subprocess.SubprocessError, FileNotFoundError):
-                ffmpeg_available = False
-            
-            if ffmpeg_available:
-                output_filename = f"{self.base_filename}_with_audio.mp4"
-                
-                # Run FFmpeg to merge the files with reliable synchronization options
-                cmd = [
-                    "ffmpeg", "-y", 
-                    "-i", game_state.video_filename, 
-                    "-itsoffset", "0.2",  # Add a fixed audio offset to compensate for recording delay
-                    "-i", game_state.audio_filename,
-                    "-c:v", "copy", 
-                    "-c:a", "aac", 
-                    "-b:a", "192k",  # Better audio quality
-                    output_filename
-                ]
-                
-                print(f"Merging audio and video with command: {' '.join(cmd)}")
-                subprocess.run(cmd, check=True)
-                print(f"Successfully merged audio and video to: {output_filename}")
-        
-        except Exception as e:
-            print(f"Error merging audio and video: {e}")
-            print("\nTo manually add audio to your video:")
-            print(f"1. Use a video editor to combine the files:")
-            print(f"   - Video: {game_state.video_filename}")
-            print(f"   - Audio: {game_state.audio_filename}")
+        if game_state.recording:
+            self.recorder.stop_recording()
+            print("Recording finalized.")
 
 
 class Game:
@@ -258,23 +323,40 @@ class Game:
 
         self.record_video = True # Set to False to disable recording
         if self.record_video:
-            self.renderer.setup_video_recording()
+            print("Setting up video recording...")
+            if not self.renderer.setup_video_recording():
+                print("Failed to set up recording, continuing without recording.")
+                self.record_video = False
 
     def run(self):
         try:
+            last_frame_time = time.time()
+            target_frame_time = 1.0 / FPS
+            
             while game_state.running:
                 self._handle_events()
-                dt = self.renderer.clock.tick(FPS) / 1000.0
-                dt = min(dt, 0.05) # Cap dt
+                
+                # Calculate frame timing
                 current_time = time.time()
-
+                frame_delta = current_time - last_frame_time
+                last_frame_time = current_time
+                
+                # Calculate physics step size (capped for stability)
+                dt = min(frame_delta, 0.05)
+                
                 if game_state.intro_phase:
                     self._run_intro_phase(current_time, dt)
                 else:
                     self._run_game_phase(current_time, dt)
-
-                pygame.display.flip()
+                
+                # Capture frame for recording before displaying
                 self.renderer.capture_frame()
+                
+                # Update display
+                pygame.display.flip()
+                
+                # Regulate framerate
+                self.renderer.clock.tick(FPS)
 
             self._cleanup()
 
@@ -344,8 +426,6 @@ class Game:
         # Render the game
         self.renderer.render_frame(current_time)
 
-    # Removed _handle_phase_transition method
-
 
     def _run_ending_sequence(self, current_time):
         # End simulation smoothly
@@ -367,15 +447,20 @@ class Game:
             ending_progress = min(1.0, ending_elapsed / ending_duration)
 
             # Minimal physics update during fade out to keep things moving a bit
-            dt = self.renderer.clock.tick(FPS) / 1000.0
-            dt = min(dt, 0.05)
+            dt = min(1.0 / FPS, 0.05)  # Use a consistent dt
             update_game_objects(dt * (1.0 - ending_progress)) # Slow down physics
 
             # Render ending frame (which includes game state + fade)
             self.renderer.render_ending(ending_progress)
 
-            pygame.display.flip()
+            # Capture frame for recording
             self.renderer.capture_frame()
+            
+            # Update display
+            pygame.display.flip()
+            
+            # Keep a stable framerate
+            self.renderer.clock.tick(FPS)
 
             if ending_progress >= 1.0:
                 ending_running = False

@@ -3,7 +3,7 @@ import pygame
 # --- Display and Performance ---
 SCREEN_WIDTH = 900
 SCREEN_HEIGHT = 900
-FPS = 144
+FPS = 60
 CENTER = pygame.Vector2(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
 CONTAINER_RADIUS = 400
 
