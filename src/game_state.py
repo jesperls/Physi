@@ -29,6 +29,11 @@ class GameState:
         self.recording = False
         self.video_writer = None
         self.video_filename = ""
+        # Audio recording state
+        self.audio_recording = False
+        self.audio_filename = ""
+        self.audio_stream = None
+        self.audio_frames = []
 
         # Time-based chaos factor (0.0 at start, 1.0 at MAX_GAME_DURATION)
         self.chaos_factor = 0.0

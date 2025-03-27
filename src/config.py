@@ -8,8 +8,8 @@ CENTER = pygame.Vector2(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
 CONTAINER_RADIUS = 400
 
 # --- Physics (Values represent the state at the START of the simulation) ---
-INITIAL_GRAVITY_STRENGTH = 300.0  # Starting gravity
-FINAL_GRAVITY_STRENGTH = 100.0    # Gravity at 60 seconds
+INITIAL_GRAVITY_STRENGTH = 1500.0  # Starting gravity
+FINAL_GRAVITY_STRENGTH = 1500.0    # Gravity at 60 seconds
 INITIAL_MAX_VELOCITY = 800        # Starting max velocity
 FINAL_MAX_VELOCITY = 1500         # Max velocity at 60 seconds
 GRAVITY_CENTER_DEADZONE = 0       # Radius around center with no gravity
@@ -17,12 +17,12 @@ GRAVITY_CENTER_DEADZONE = 0       # Radius around center with no gravity
 # --- Ball Properties (Values represent the state at the START of the simulation) ---
 INITIAL_BALLS = 2                 # Start with a few more balls
 MIN_RADIUS = 4                   # Smaller minimum size
-MAX_RADIUS = 25                  # Slightly smaller max size
+MAX_RADIUS = 15                  # Slightly smaller max size
 BASE_DENSITY = 0.1
-INITIAL_BALL_ELASTICITY = 1.3    # Start slightly bouncy
-FINAL_BALL_ELASTICITY = 1.1      # Max elasticity at 60 seconds (can exceed 1.0 for energy gain)
+INITIAL_BALL_ELASTICITY = 6    # Start slightly bouncy
+FINAL_BALL_ELASTICITY = 6      # Max elasticity at 60 seconds (can exceed 1.0 for energy gain)
 INITIAL_DRAG_COEFFICIENT = 0.995  # Start with slight drag
-FINAL_DRAG_COEFFICIENT = 0.999   # Almost no drag at 60 seconds (0.9998 is closer to 1.0 than 0.999)
+FINAL_DRAG_COEFFICIENT = 0.995   # Almost no drag at 60 seconds (0.9998 is closer to 1.0 than 0.999)
 
 # --- Color and Visual Dynamics ---
 COLOR_SPECTRUM_RANGE = 360
@@ -36,20 +36,20 @@ COLOR_VALUE_RANGE = (85, 100)
 COLOR_SHIFT_BASE_RATE = 5.0
 COLOR_SHIFT_VARIANCE = 1.5
 COLOR_SHIFT_OSCILLATION = 0.6
-INITIAL_GROWTH_RATE = 0.8         # Slower initial growth
+INITIAL_GROWTH_RATE = 1         # Slower initial growth
 FINAL_GROWTH_RATE = 1           # Faster growth towards the end
 
 # --- Splitting and Merging (Values represent the state at the START of the simulation) ---
-INITIAL_COLOR_DISTANCE_THRESHOLD = 40 # Harder to merge initially
-FINAL_COLOR_DISTANCE_THRESHOLD = 120   # Easier to merge at 60 seconds
-INITIAL_SPLIT_CHANCE = 0.02       # Low initial split chance
-FINAL_SPLIT_CHANCE = 0.20         # High split chance at 60 seconds
-INITIAL_COLLISION_SHRINK_FACTOR = 0.001 # Minimal shrink initially
+INITIAL_COLOR_DISTANCE_THRESHOLD = 0 # Harder to merge initially
+FINAL_COLOR_DISTANCE_THRESHOLD = 0   # Easier to merge at 60 seconds
+INITIAL_SPLIT_CHANCE = 0.0       # Low initial split chance
+FINAL_SPLIT_CHANCE = 0.0         # High split chance at 60 seconds
+INITIAL_COLLISION_SHRINK_FACTOR = 0.1 # Minimal shrink initially
 FINAL_COLLISION_SHRINK_FACTOR = 0.1  # Significant shrink at 60 seconds
 SPLIT_TINT_FACTOR = 0.1
 MERGE_AREA_FACTOR = 1.0
-INITIAL_SPLIT_MASS_LOSS_FACTOR = 1.05 # Less mass loss initially
-FINAL_SPLIT_MASS_LOSS_FACTOR = 1.30 # More mass loss at 60 seconds
+INITIAL_SPLIT_MASS_LOSS_FACTOR = 1 # Less mass loss initially
+FINAL_SPLIT_MASS_LOSS_FACTOR = 1 # More mass loss at 60 seconds
 MIN_SPLIT_RADIUS = 10             # Min radius required to split
 
 # --- Visual Effects ---
@@ -76,7 +76,7 @@ PARTICLE_RADIUS = 2.5
 POP_FLASH_DURATION = 0.3
 POP_SOUND_VOLUME = 0.8
 SHAKE_DURATION = 0.15
-INITIAL_SHAKE_INTENSITY = 3       # Lower initial shake
+INITIAL_SHAKE_INTENSITY = 10       # Lower initial shake
 FINAL_SHAKE_INTENSITY = 10        # Higher shake intensity at 60 seconds
 
 # --- Game Flow ---
@@ -84,12 +84,12 @@ INTRO_DURATION = 3.0
 INTRO_FADE_OVERLAP = 0.5
 MAX_GAME_DURATION = 60.0          # Target duration for chaos ramp-up
 MAX_BALL_COUNT = 35               # Allow slightly more balls for chaos
-INITIAL_SPAWN_RATE = 0.001        # Chance per frame to spawn a ball at start
-FINAL_SPAWN_RATE = 0.006          # Chance per frame to spawn a ball at 60 seconds
+INITIAL_SPAWN_RATE = 0.000        # Chance per frame to spawn a ball at start
+FINAL_SPAWN_RATE = 0.00          # Chance per frame to spawn a ball at 60 seconds
 
 # --- Sound ---
 SOUND_ENABLED = True
-SOUND_VOLUME_MASTER = 0.6
+SOUND_VOLUME_MASTER = 1.5
 SOUND_VOLUME_AMBIENT = 0.2
 SOUND_FILES = {
     'collision': 'collision.ogg',

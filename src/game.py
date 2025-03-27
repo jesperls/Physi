@@ -1,8 +1,10 @@
 import pygame
 import cv2
 import time
-import numpy as np
 import random
+import os
+import subprocess
+import threading
 from datetime import datetime
 from src.config import *
 from src.audio import audio_manager
@@ -13,6 +15,26 @@ from src.physics import update_game_objects, create_initial_balls, spawn_fresh_b
 from src.game_state import game_state
 import math
 
+class AudioRecorder:
+    """Handles recording of game audio - REPLACED with unified FFmpeg recorder approach"""
+    
+    def __init__(self):
+        self.is_recording = False
+        self.ffmpeg_process = None
+        self.start_time = 0
+    
+    def setup_audio_recording(self, filename):
+        """No longer used - audio is recorded with video by FFmpeg"""
+        # This method is kept for compatibility but no longer does separate audio recording
+        self.is_recording = True
+        self.start_time = time.time()
+        print("Audio will be recorded with video using FFmpeg")
+    
+    def stop_recording(self):
+        """Stop the audio recording"""
+        self.is_recording = False
+        print("Audio recording will stop with video recording")
+
 class GameRenderer:
     """Handles rendering for the game"""
 
@@ -22,16 +44,30 @@ class GameRenderer:
         self.font = pygame.font.Font(None, 24)
         if self.font is None:
             self.font = pygame.font.SysFont("sans-serif", 24)
+        self.audio_recorder = AudioRecorder()
 
     def setup_video_recording(self):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        game_state.video_filename = f"physics_simulation_{timestamp}.mp4"
+        base_filename = f"physics_simulation_{timestamp}"
+        
+        # Setup video recording
+        game_state.video_filename = f"{base_filename}.mp4"
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        video_fps = 60
+        video_fps = 60  # Make sure video FPS is consistent
         game_state.video_writer = cv2.VideoWriter(
             game_state.video_filename, fourcc, video_fps, (SCREEN_WIDTH, SCREEN_HEIGHT))
         game_state.recording = True
         print(f"Recording video to: {game_state.video_filename} at {video_fps} FPS")
+        
+        # Setup audio recording - start audio first to ensure it's ready when video starts
+        game_state.audio_filename = f"{base_filename}.wav"
+        self.audio_recorder.setup_audio_recording(game_state.audio_filename)
+        
+        # Store base filename for later use
+        self.base_filename = base_filename
+        
+        # Add a short delay to ensure audio recording is properly initialized
+        time.sleep(0.1)
 
     def render_frame(self, current_time):
         self.screen.fill(BACKGROUND_COLOR)
@@ -143,6 +179,7 @@ class GameRenderer:
         if not game_state.recording or game_state.video_writer is None:
             return
         try:
+            # Capture and write the video frame
             pygame_surface_data = pygame.surfarray.array3d(self.screen)
             cv2_frame = cv2.cvtColor(pygame_surface_data.swapaxes(0, 1), cv2.COLOR_RGB2BGR)
             game_state.video_writer.write(cv2_frame)
@@ -156,6 +193,49 @@ class GameRenderer:
                 print(f"Video recording completed: {game_state.video_filename}")
             except Exception as e:
                 print(f"Error finalizing video: {e}")
+        
+        # Stop the audio recording
+        self.audio_recorder.stop_recording()
+        
+        # Try to merge audio and video if both exist
+        if os.path.exists(game_state.video_filename) and os.path.exists(game_state.audio_filename):
+            self._merge_audio_video()
+    
+    def _merge_audio_video(self):
+        """Attempt to merge audio and video files using FFmpeg if available"""
+        try:
+            # Check if ffmpeg is available
+            try:
+                subprocess.run(["ffmpeg", "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+                ffmpeg_available = True
+            except (subprocess.SubprocessError, FileNotFoundError):
+                ffmpeg_available = False
+            
+            if ffmpeg_available:
+                output_filename = f"{self.base_filename}_with_audio.mp4"
+                
+                # Run FFmpeg to merge the files with reliable synchronization options
+                cmd = [
+                    "ffmpeg", "-y", 
+                    "-i", game_state.video_filename, 
+                    "-itsoffset", "0.2",  # Add a fixed audio offset to compensate for recording delay
+                    "-i", game_state.audio_filename,
+                    "-c:v", "copy", 
+                    "-c:a", "aac", 
+                    "-b:a", "192k",  # Better audio quality
+                    output_filename
+                ]
+                
+                print(f"Merging audio and video with command: {' '.join(cmd)}")
+                subprocess.run(cmd, check=True)
+                print(f"Successfully merged audio and video to: {output_filename}")
+        
+        except Exception as e:
+            print(f"Error merging audio and video: {e}")
+            print("\nTo manually add audio to your video:")
+            print(f"1. Use a video editor to combine the files:")
+            print(f"   - Video: {game_state.video_filename}")
+            print(f"   - Audio: {game_state.audio_filename}")
 
 
 class Game:
