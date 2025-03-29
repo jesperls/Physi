@@ -141,6 +141,7 @@ class Game:
         audio_manager.initialize()
         game_state.reset()
         game_state.intro_start_time = time.time()
+        recorder.start_recording()
 
     def run(self):
         try:
@@ -159,6 +160,8 @@ class Game:
                 
                 # Calculate physics step size (capped for stability)
                 dt = frame_delta
+                # Start recording when the actual game begins
+                
                 
                 if game_state.intro_phase:
                     self._run_intro_phase(current_time, dt)
@@ -206,8 +209,6 @@ class Game:
         if intro_progress >= 1.0:
             game_state.intro_phase = False
             game_state.game_start_time = current_time
-            # Start recording when the actual game begins
-            recorder.start_recording()
             # audio_manager.play('start', 1.0)
             if len(game_state.balls) == 0:
                 create_initial_balls() # Ensure balls exist
@@ -256,6 +257,10 @@ class Game:
             
             # Update display
             pygame.display.flip()
+
+            
+            if game_state.recording:
+                recorder.capture_frame(self.screen)
             
             # Keep a stable framerate
             self.renderer.clock.tick(FPS)

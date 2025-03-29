@@ -27,7 +27,7 @@ def handle_ball_collisions(balls, dt):
     # Get current time-based parameters from game_state
     chaos = game_state.chaos_factor # Alias for brevity
     collision_shrink_factor = game_state.get_current_value(INITIAL_COLLISION_SHRINK_FACTOR, FINAL_COLLISION_SHRINK_FACTOR)
-    elasticity = game_state.get_current_value(INITIAL_BALL_ELASTICITY, FINAL_BALL_ELASTICITY)
+    ball_elasticity = game_state.get_current_value(INITIAL_BALL_ELASTICITY, FINAL_BALL_ELASTICITY)
     split_chance = game_state.get_current_value(INITIAL_SPLIT_CHANCE, FINAL_SPLIT_CHANCE)
     merge_threshold = game_state.get_current_value(INITIAL_COLOR_DISTANCE_THRESHOLD, FINAL_COLOR_DISTANCE_THRESHOLD)
     split_mass_loss = game_state.get_current_value(INITIAL_SPLIT_MASS_LOSS_FACTOR, FINAL_SPLIT_MASS_LOSS_FACTOR)
@@ -80,7 +80,7 @@ def handle_ball_collisions(balls, dt):
                     impact_force = min(1.0, impact_force)
 
                     # Use current elasticity (which ramps up over time)
-                    current_elasticity = elasticity
+                    current_elasticity = ball_elasticity
 
                     impulse_scalar = (- (1.0 + current_elasticity) * vel_along_normal) / (inv_mass1 + inv_mass2) # Simplified impulse calc
 
@@ -236,6 +236,9 @@ def update_game_objects(dt):
     Args:
         dt: Time delta in seconds
     """
+    # Limit dt to prevent huge steps that could cause instability
+    dt = min(dt, 1.0 / 20.0)  # Cap at 20 FPS equivalent to prevent physics issues
+    
     # Update chaos factor first
     game_state.update_chaos_factor()
 
@@ -245,7 +248,8 @@ def update_game_objects(dt):
     # Update balls
     for ball in game_state.balls:
         update_result = ball.update(dt)
-        if not update_result or ball.should_remove or ball.radius < MIN_RADIUS:
+        # Only remove balls if they're explicitly marked for removal and BALLS_CAN_DIE is True
+        if not update_result or (ball.should_remove and BALLS_CAN_DIE):
             balls_to_remove_small.add(ball.id)
 
             # --- Pop Animation Effects ---

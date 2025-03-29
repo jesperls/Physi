@@ -131,9 +131,13 @@ class Ball:
         current_growth_rate = game_state.get_current_value(INITIAL_GROWTH_RATE, FINAL_GROWTH_RATE)
         self.radius += current_growth_rate * dt
 
+        # Only mark for removal if BALLS_CAN_DIE is True
         if self.radius < MIN_RADIUS and BALLS_CAN_DIE:
             self.should_remove = True
             return False
+        else:
+            # Ensure radius never goes below MIN_RADIUS
+            self.radius = max(MIN_RADIUS, self.radius)
 
         # Update color
         elapsed_time_sim = time.time() # Use absolute time for smoother oscillation
@@ -214,12 +218,10 @@ class Ball:
             self.mass = BASE_DENSITY * self.radius**2
 
             # Bounce elasticity based on chaos_factor
-            current_elasticity = game_state.get_current_value(INITIAL_BALL_ELASTICITY, FINAL_BALL_ELASTICITY)
-            # Use a slightly lower elasticity for wall bounces compared to ball-ball
-            wall_elasticity = max(0.9, current_elasticity * 0.95)
-
+            current_wall_elasticity = game_state.get_current_value(INITIAL_WALL_ELASTICITY, FINAL_WALL_ELASTICITY)
+            
             self.velocity.reflect_ip(normal)
-            self.velocity *= wall_elasticity
+            self.velocity *= current_wall_elasticity
 
             # Add tangential velocity boost based on chaos_factor
             if random.random() < 0.1 + game_state.chaos_factor * 0.3: # More chance later
