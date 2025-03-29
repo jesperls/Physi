@@ -131,7 +131,7 @@ class Ball:
         current_growth_rate = game_state.get_current_value(INITIAL_GROWTH_RATE, FINAL_GROWTH_RATE)
         self.radius += current_growth_rate * dt
 
-        if self.radius < MIN_RADIUS:
+        if self.radius < MIN_RADIUS and BALLS_CAN_DIE:
             self.should_remove = True
             return False
 

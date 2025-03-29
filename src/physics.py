@@ -70,7 +70,7 @@ def handle_ball_collisions(balls, dt):
                 relative_velocity = ball_a.velocity - ball_b.velocity
                 vel_along_normal = relative_velocity.dot(normal)
 
-                if vel_along_normal < 0:
+                if vel_along_normal < 0 :
                     m1 = ball_a.mass if ball_a.mass > 1e-9 else 1e-9
                     m2 = ball_b.mass if ball_b.mass > 1e-9 else 1e-9
                     inv_mass1 = 1.0 / m1
@@ -90,8 +90,8 @@ def handle_ball_collisions(balls, dt):
                     ball_a.radius -= shrink_amount * ball_a.radius
                     ball_b.radius -= shrink_amount * ball_b.radius
 
-                    if ball_a.radius < MIN_RADIUS: ball_a.should_remove = True
-                    if ball_b.radius < MIN_RADIUS: ball_b.should_remove = True
+                    if ball_a.radius < MIN_RADIUS and BALLS_CAN_DIE: ball_a.should_remove = True
+                    if ball_b.radius < MIN_RADIUS and BALLS_CAN_DIE: ball_b.should_remove = True
 
                     ball_a.mass = BASE_DENSITY * ball_a.radius**2
                     ball_b.mass = BASE_DENSITY * ball_b.radius**2
@@ -192,7 +192,7 @@ def handle_ball_collisions(balls, dt):
                                 else:
                                     new_radius = MIN_RADIUS
 
-                                if new_radius >= MIN_RADIUS:
+                                if new_radius >= MIN_RADIUS and BALLS_CAN_DIE:
                                     balls_to_remove.add(victim.id)
                                     collision_pairs_processed.add(pair_id)
 

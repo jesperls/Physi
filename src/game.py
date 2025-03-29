@@ -7,6 +7,7 @@ from src.entities import Particle
 from src.utilities import random_bright_color
 from src.physics import update_game_objects, create_initial_balls, spawn_fresh_ball
 from src.game_state import game_state
+from src.recording import recorder
 import math
 
 class GameRenderer:
@@ -167,6 +168,10 @@ class Game:
                 # Update display
                 pygame.display.flip()
                 
+                # Capture frame for recording if active
+                if game_state.recording:
+                    recorder.capture_frame(self.screen)
+                
                 # Regulate framerate
                 self.renderer.clock.tick(FPS)
 
@@ -201,6 +206,8 @@ class Game:
         if intro_progress >= 1.0:
             game_state.intro_phase = False
             game_state.game_start_time = current_time
+            # Start recording when the actual game begins
+            recorder.start_recording()
             # audio_manager.play('start', 1.0)
             if len(game_state.balls) == 0:
                 create_initial_balls() # Ensure balls exist
@@ -236,7 +243,7 @@ class Game:
                 if event.type == pygame.QUIT:
                     ending_running = False
                     game_state.running = False
-                    
+                        
             ending_elapsed = time.time() - ending_start_time
             ending_progress = min(1.0, ending_elapsed / ending_duration)
 
@@ -260,6 +267,10 @@ class Game:
 
     def _cleanup(self):
         print("Cleaning up...")
+        # Stop recording if it's active
+        if game_state.recording:
+            print("Finalizing recording...")
+            recorder.stop_recording()
         audio_manager.cleanup()
         pygame.quit()
 
