@@ -13,8 +13,8 @@ class AudioManager:
         self.last_played = {}  # Track when sounds were last played
         self.sound_cooldowns = {
             'collision': 0.05,  # Minimum time between collision sounds
-            'start': 0.0,      # No cooldown for start sound
-            'end': 0.0,        # No cooldown for end sound
+            # 'start': 0.0,      # No cooldown for start sound
+            # 'end': 0.0,        # No cooldown for end sound
             'ambient': 0.0     # No cooldown for ambient
         }
         self.global_cooldown = 0.01  # Global minimum between any sounds

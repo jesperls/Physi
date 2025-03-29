@@ -94,6 +94,6 @@ SOUND_VOLUME_AMBIENT = 0.2
 SOUND_FILES = {
     'collision': 'collision.ogg',
     'ambient': 'ambient.ogg',
-    'start': 'start.ogg',
-    'end': 'end.ogg'
+    # 'start': 'start.ogg',
+    # 'end': 'end.ogg'
 }
