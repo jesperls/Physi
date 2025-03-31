@@ -7,6 +7,7 @@ from src.game import run_game
 # Entry point for the application
 if __name__ == '__main__':
     try:
+        # Run the game loop
         run_game()
     except Exception as e:
         # Print any unhandled exceptions

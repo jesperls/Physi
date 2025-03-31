@@ -42,8 +42,8 @@ INITIAL_GROWTH_RATE = 1         # Slower initial growth
 FINAL_GROWTH_RATE = 1           # Faster growth towards the end
 
 # --- Splitting and Merging (Values represent the state at the START of the simulation) ---
-INITIAL_COLOR_DISTANCE_THRESHOLD = 30 # Harder to merge initially
-FINAL_COLOR_DISTANCE_THRESHOLD = 30   # Easier to merge at 60 seconds
+INITIAL_COLOR_DISTANCE_THRESHOLD = 50 # Harder to merge initially
+FINAL_COLOR_DISTANCE_THRESHOLD = 60   # Easier to merge at 60 seconds
 INITIAL_SPLIT_CHANCE = 0.0       # Low initial split chance
 FINAL_SPLIT_CHANCE = 0.0         # High split chance at 60 seconds
 INITIAL_COLLISION_SHRINK_FACTOR = 0.1 # Minimal shrink initially
@@ -79,24 +79,25 @@ POP_FLASH_DURATION = 0.3
 POP_SOUND_VOLUME = 0.8
 SHAKE_DURATION = 0.15
 INITIAL_SHAKE_INTENSITY = 2       # Lower initial shake
-FINAL_SHAKE_INTENSITY = 10        # Higher shake intensity at 60 seconds
+FINAL_SHAKE_INTENSITY = 5        # Higher shake intensity at 60 seconds
 
 # --- Game Flow ---
 INTRO_DURATION = 3.0
 INTRO_FADE_OVERLAP = 0.5
-MAX_GAME_DURATION = 60.0          # Target duration for chaos ramp-up
+MAX_GAME_DURATION = 50.0          # Target duration for chaos ramp-up
 MAX_BALL_COUNT = 35               # Allow slightly more balls for chaos
 INITIAL_SPAWN_RATE = 0.001        # Chance per frame to spawn a ball at start
-FINAL_SPAWN_RATE = 0.005          # Chance per frame to spawn a ball at 60 seconds
+FINAL_SPAWN_RATE = 0.004          # Chance per frame to spawn a ball at 60 seconds
 BALLS_CAN_DIE = False
 
 # --- Sound ---
 SOUND_ENABLED = True
 SOUND_VOLUME_MASTER = 1.5
 SOUND_VOLUME_AMBIENT = 0.2
-SOUND_FILES = {
-    'collision': 'collision.ogg',
-    'ambient': 'ambient.ogg',
-    # 'start': 'start.ogg',
-    # 'end': 'end.ogg'
+# Define sound categories as folders instead of specific files
+SOUND_FOLDERS = {
+    'collision': 'sounds/collision',
+    'ambient': 'sounds/ambient',
+    # 'start': 'sounds/start',
+    # 'end': 'sounds/end'
 }

@@ -8,7 +8,7 @@ from src.utilities import color_distance, lerp_color, spawn_particles, trigger_s
 from src.audio import audio_manager
 from src.game_state import game_state
 
-def handle_ball_collisions(balls, dt):
+def handle_ball_collisions(balls, dt, beat_intensity=0.5):
     """
     Handle collisions between balls with merging and splitting behavior,
     scaling effects based on game_state.chaos_factor.
@@ -16,6 +16,7 @@ def handle_ball_collisions(balls, dt):
     Args:
         balls: List of Ball objects
         dt: Time delta in seconds
+        beat_intensity: Current audio beat intensity (0.0 to 1.0)
 
     Returns:
         Tuple of (balls_to_add, balls_to_remove)
@@ -32,6 +33,11 @@ def handle_ball_collisions(balls, dt):
     merge_threshold = game_state.get_current_value(INITIAL_COLOR_DISTANCE_THRESHOLD, FINAL_COLOR_DISTANCE_THRESHOLD)
     split_mass_loss = game_state.get_current_value(INITIAL_SPLIT_MASS_LOSS_FACTOR, FINAL_SPLIT_MASS_LOSS_FACTOR)
     current_shake_intensity = game_state.get_current_value(INITIAL_SHAKE_INTENSITY, FINAL_SHAKE_INTENSITY)
+    
+    # Apply beat influence
+    beat_influence = 0.7 + beat_intensity * 0.6  # Range from 0.7 to 1.3
+    ball_elasticity *= beat_influence
+    current_shake_intensity *= beat_influence
 
     for i in range(len(balls)):
         if balls[i].id in balls_to_remove:
@@ -115,16 +121,20 @@ def handle_ball_collisions(balls, dt):
                     except (TypeError, ValueError):
                         avg_color = pygame.Color('white')
 
-                    audio_volume = 0.5 + (impact_force * 0.5)
+                    # Modify volume and flash size based on beat intensity
+                    audio_volume = (0.5 + (impact_force * 0.5)) * beat_influence
                     audio_manager.play('collision', audio_volume, contact_point)
 
                     flash_size = avg_radius * (0.8 + (FLASH_RADIUS_FACTOR - 0.8) * impact_force)
+                    flash_size *= (1.0 + (beat_intensity - 0.5) * 0.4)  # Adjust for beat
                     flash_duration = FLASH_DURATION * (0.6 + (0.4 * impact_force))
                     game_state.effects.append(Effect(contact_point, pygame.Color('white'),
                                                    avg_radius * 0.5, flash_size, flash_duration))
 
                     particle_count = int(PARTICLE_COUNT_COLLISION * (0.5 + (0.5 * impact_force)))
+                    particle_count = int(particle_count * (1.0 + (beat_intensity - 0.5) * 0.5))  # More particles with beat
                     particle_speed_max = PARTICLE_SPEED_MAX * (1.0 + chaos * 0.5) # Faster particles later
+                    particle_speed_max *= beat_influence  # Adjust for beat
                     spawn_particles(game_state.particles, contact_point, particle_count,
                                    avg_color, PARTICLE_SPEED_MIN, particle_speed_max)
 
@@ -159,12 +169,20 @@ def handle_ball_collisions(balls, dt):
                         balls_to_remove.add(ball_b.id)
 
                         # --- Merge Effects ---
-                        audio_manager.play('collision', 1.1 + chaos * 0.2, new_pos) # Louder merge later
+                        merge_vol = (1.1 + chaos * 0.2) * beat_influence
+                        audio_manager.play('collision', merge_vol, new_pos) # Louder merge later
+                        
+                        # Bigger flash with beat
+                        flash_size_factor = 2.0 + chaos * 0.5 + (beat_intensity - 0.5) * 0.6
                         game_state.effects.append(Effect(new_pos, pygame.Color('white'),
-                                                       new_radius, new_radius * (2.0 + chaos * 0.5), FLASH_DURATION * 1.5)) # Bigger flash later
-                        spawn_particles(game_state.particles, new_pos, int(PARTICLE_COUNT_SPLIT_MERGE * (1 + chaos)), # More particles later
+                                                       new_radius, new_radius * flash_size_factor, FLASH_DURATION * 1.5)) # Bigger flash later
+                        
+                        # More particles with beat
+                        particle_count = int(PARTICLE_COUNT_SPLIT_MERGE * (1 + chaos) * beat_influence)
+                        spawn_particles(game_state.particles, new_pos, particle_count,
                                        avg_color, PARTICLE_SPEED_MIN, PARTICLE_SPEED_MAX * (1 + chaos*0.8), 1.5)
-                        trigger_screen_shake(SHAKE_DURATION * 1.2, current_shake_intensity * 1.5)
+                        
+                        trigger_screen_shake(SHAKE_DURATION * 1.2, current_shake_intensity * 1.5 * beat_influence)
 
                     # --- SPLIT Condition (Easier over time) ---
                     else:
@@ -198,14 +216,22 @@ def handle_ball_collisions(balls, dt):
 
                                     perp_normal = pygame.Vector2(-normal.y, normal.x) * random.choice([-1, 1])
 
-                                    audio_manager.play('collision', 1.0 + chaos * 0.1, victim.position) # Louder split later
+                                    audio_manager.play('collision', (1.0 + chaos * 0.1) * beat_influence, victim.position) # Louder split later
+                                    
+                                    # Flash size enhanced by beat
+                                    flash_size_factor = 1.5 + chaos * 0.5 + (beat_intensity - 0.5) * 0.4
                                     game_state.effects.append(Effect(victim.position, victim.current_color,
-                                                                    victim.radius, victim.radius * (1.5 + chaos * 0.5), # Bigger flash later
+                                                                    victim.radius, victim.radius * flash_size_factor,
                                                                     FLASH_DURATION * 1.2))
+                                                                    
+                                    # More particles with stronger beat
+                                    particle_count = int(PARTICLE_COUNT_SPLIT_MERGE * (1 + chaos) * beat_influence)
                                     spawn_particles(game_state.particles, victim.position,
-                                                   int(PARTICLE_COUNT_SPLIT_MERGE * (1 + chaos)), victim.current_color, # More particles later
+                                                   particle_count, victim.current_color,
                                                    PARTICLE_SPEED_MIN, PARTICLE_SPEED_MAX * (1 + chaos*0.8))
-                                    trigger_screen_shake(SHAKE_DURATION * (1 + chaos * 0.3), current_shake_intensity) # Stronger shake later
+                                                  
+                                    trigger_screen_shake(SHAKE_DURATION * (1 + chaos * 0.3), 
+                                                        current_shake_intensity * beat_influence)
 
                                     for k in range(2):
                                         offset_dir = perp_normal if k == 0 else -perp_normal
@@ -213,7 +239,7 @@ def handle_ball_collisions(balls, dt):
 
                                         # Increase velocity of split balls based on chaos
                                         vel_bonus = 1.0 + chaos * 0.6
-                                        vel_offset_magnitude = (victim.velocity.length() * 0.3 + 80) * vel_bonus
+                                        vel_offset_magnitude = (victim.velocity.length() * 0.3 + 80) * vel_bonus * beat_influence
                                         new_vel = victim.velocity + offset_dir * vel_offset_magnitude * random.uniform(0.9, 1.1)
 
                                         try:
@@ -229,12 +255,13 @@ def handle_ball_collisions(balls, dt):
     return balls_to_add, balls_to_remove
 
 
-def update_game_objects(dt):
+def update_game_objects(dt, beat_intensity=0.5):
     """
     Update all game objects, applying time-based chaos scaling.
 
     Args:
         dt: Time delta in seconds
+        beat_intensity: Current audio beat intensity (0.0 to 1.0)
     """
     # Limit dt to prevent huge steps that could cause instability
     dt = min(dt, 1.0 / 20.0)  # Cap at 20 FPS equivalent to prevent physics issues
@@ -245,18 +272,34 @@ def update_game_objects(dt):
     new_effects = []
     balls_to_remove_small = set()
 
-    # Update balls
+    # Update balls with beat influence
     for ball in game_state.balls:
+        # Scale the ball's pulse frequency with the beat_intensity
+        beat_pulse_factor = 1.0 + (beat_intensity - 0.5) * 0.3  # Range 0.85 to 1.15
+        original_freq = ball.pulse_frequency
+        ball.pulse_frequency = PULSE_FREQUENCY * random.uniform(0.8, 1.2) * beat_pulse_factor
+        
         update_result = ball.update(dt)
+        
+        # Reset frequency to avoid drift
+        ball.pulse_frequency = original_freq
+        
         # Only remove balls if they're explicitly marked for removal and BALLS_CAN_DIE is True
         if not update_result or (ball.should_remove and BALLS_CAN_DIE):
             balls_to_remove_small.add(ball.id)
 
             # --- Pop Animation Effects ---
             pop_radius_factor = 1.5 + game_state.chaos_factor * 1.5 # Bigger pop later
+            pop_radius_factor *= 1.0 + (beat_intensity - 0.5) * 0.4  # Modify with beat
+            
             pop_particle_count = int(PARTICLE_COUNT_POP * (1 + game_state.chaos_factor * 1.5)) # More particles later
+            pop_particle_count = int(pop_particle_count * (1.0 + (beat_intensity - 0.5) * 0.5))  # More with beat
+            
             pop_particle_speed = PARTICLE_SPEED_MAX * (1.0 + game_state.chaos_factor) # Faster particles later
+            pop_particle_speed *= 1.0 + (beat_intensity - 0.5) * 0.4  # Faster with beat
+            
             pop_shake_intensity = game_state.get_current_value(INITIAL_SHAKE_INTENSITY, FINAL_SHAKE_INTENSITY) * 0.5
+            pop_shake_intensity *= 1.0 + (beat_intensity - 0.5) * 0.6  # Stronger with beat
 
             game_state.effects.append(
                 Effect(ball.position, pygame.Color('white'),
@@ -271,7 +314,12 @@ def update_game_objects(dt):
             spawn_particles(game_state.particles, ball.position,
                            pop_particle_count, ball.current_color,
                            PARTICLE_SPEED_MIN * 1.2, pop_particle_speed, 1.2)
-            audio_manager.play('collision', POP_SOUND_VOLUME * (1 + game_state.chaos_factor*0.5), ball.position) # Louder pop later
+            
+            # Audio volume varies with beat
+            pop_volume = POP_SOUND_VOLUME * (1 + game_state.chaos_factor*0.5)
+            pop_volume *= 1.0 + (beat_intensity - 0.5) * 0.5
+            audio_manager.play('collision', pop_volume, ball.position) # Louder pop later
+            
             trigger_screen_shake(SHAKE_DURATION * 0.4, pop_shake_intensity)
 
         if ball.hit_wall_effect_info:
@@ -282,7 +330,7 @@ def update_game_objects(dt):
             ball.hit_wall_effect_info = None
 
     # Handle ball-ball collisions
-    balls_to_add, balls_to_remove_collision = handle_ball_collisions(game_state.balls, dt)
+    balls_to_add, balls_to_remove_collision = handle_ball_collisions(game_state.balls, dt, beat_intensity)
 
     balls_to_remove = balls_to_remove_small.union(balls_to_remove_collision)
 
@@ -307,15 +355,15 @@ def update_game_objects(dt):
         num_to_remove = len(game_state.balls) - MAX_BALL_COUNT
         removed_ids = {ball.id for ball in game_state.balls[:num_to_remove]}
         game_state.balls = game_state.balls[num_to_remove:]
-        # Trigger pop effects for removed balls (optional, can be noisy)
-        # for ball_id in removed_ids:
-            # Find ball instance (might be inefficient)
-            # Find the ball instance to get position/color - this part needs optimization if used
-            # ... trigger pop effect ...
 
     # Add new balls periodically based on chaos factor
     current_spawn_rate = game_state.get_current_value(INITIAL_SPAWN_RATE, FINAL_SPAWN_RATE)
-    if random.random() < current_spawn_rate and len(game_state.balls) < MAX_BALL_COUNT :
+    
+    # Make the spawn rate pulse with the beat
+    spawn_rate_beat_modifier = 1.0 + (beat_intensity - 0.5) * 0.6  # Range from 0.7 to 1.3
+    current_spawn_rate *= spawn_rate_beat_modifier
+    
+    if random.random() < current_spawn_rate and len(game_state.balls) < MAX_BALL_COUNT:
         spawn_fresh_ball()
 
 
@@ -371,16 +419,18 @@ def create_initial_balls():
                     retries += 1
 
 
-# Removed trigger_finale as it's not needed with natural progression
-
-
-def spawn_fresh_ball():
+def spawn_fresh_ball(sync_to_beat=False):
     """
     Spawn a fresh ball with properties scaled by chaos_factor.
+    
+    Args:
+        sync_to_beat: If True, increase the size and velocity to emphasize beat
     """
     from src.utilities import random_bright_color, generate_analogous_color
 
     chaos = game_state.chaos_factor
+    beat_intensity = audio_manager.get_beat_intensity() if sync_to_beat else 0.5
+    beat_modifier = 1.0 + (beat_intensity - 0.5) * 0.6  # Range from 0.7 to 1.3
 
     # Position: More random over time
     angle = random.uniform(0, 2 * math.pi)
@@ -390,6 +440,9 @@ def spawn_fresh_ball():
 
     # Velocity: Higher and more random over time
     vel_mag = random.uniform(200 + chaos * 300, 400 + chaos * 400)
+    if sync_to_beat:
+        vel_mag *= beat_modifier  # Faster on beat
+        
     # Direction: More outward bias initially, more random later
     base_dir = (pos - CENTER).normalize() if dist > 10 else pygame.Vector2(math.cos(angle), math.sin(angle))
     random_dir = pygame.Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize()
@@ -400,6 +453,9 @@ def spawn_fresh_ball():
 
     # Size: Generally larger over time
     radius = random.uniform(MIN_RADIUS * (1.5 + chaos), MAX_RADIUS * (0.6 + chaos * 0.3))
+    if sync_to_beat:
+        radius *= beat_modifier  # Larger on beat
+        
     radius = max(MIN_RADIUS, min(MAX_RADIUS, radius)) # Clamp size
 
     # Color: More chance of analogous colors later
@@ -412,9 +468,22 @@ def spawn_fresh_ball():
 
     ball = Ball(pos, vel, radius, color)
 
-    # Spawn effects scaled by chaos
-    spawn_particles(game_state.particles, pos, int(10 + chaos*10), color, 50, 150 + chaos*100)
-    game_state.effects.append(Effect(pos, pygame.Color('white'), radius * 0.5, radius * (1.5 + chaos*0.5), 0.3))
+    # Spawn effects scaled by chaos and beat
+    particle_count = int(10 + chaos*10)
+    if sync_to_beat:
+        particle_count = int(particle_count * beat_modifier)
+        
+    particle_speed = 150 + chaos*100
+    if sync_to_beat:
+        particle_speed *= beat_modifier
+        
+    spawn_particles(game_state.particles, pos, particle_count, color, 50, particle_speed)
+    
+    flash_size = radius * (1.5 + chaos*0.5)
+    if sync_to_beat:
+        flash_size *= beat_modifier
+        
+    game_state.effects.append(Effect(pos, pygame.Color('white'), radius * 0.5, flash_size, 0.3))
 
     game_state.balls.append(ball)
 
